@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { ClipperJob, HighlightSegment } from '../../types';
 import { formatDuration, formatTime, getViralityColor } from '../../lib/utils';
+import { generateHighlightsForVideo } from '../../services/mockData';
 
 interface Step3HighlightsProps {
   job: ClipperJob;
@@ -26,22 +27,32 @@ export const Step3Highlights: React.FC<Step3HighlightsProps> = ({
   onSelectHighlight,
   theme,
 }) => {
+  const highlightsList = (job.highlights && job.highlights.length > 0)
+    ? job.highlights
+    : generateHighlightsForVideo(job.title || 'Viral Podcast Highlight', job.durationSeconds || 180);
+
   const [targetLength, setTargetLength] = useState<'short' | 'medium' | 'long'>('medium');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedHighlightId, setSelectedHighlightId] = useState<string>(
-    job.selectedHighlightId || (job.highlights[0]?.id ?? '')
+    job.selectedHighlightId || highlightsList[0]?.id || 'hl-1'
   );
 
   const categories = ['all', 'Insight', 'Story', 'Hot Take', 'How-to', 'Mindset'];
 
-  const filteredHighlights = job.highlights.filter((hl) => {
+  const filtered = highlightsList.filter((hl) => {
     if (selectedCategory !== 'all' && hl.category !== selectedCategory) return false;
     if (targetLength === 'short' && hl.duration > 35) return false;
     if (targetLength === 'long' && hl.duration < 40) return false;
     return true;
   });
 
-  const currentSelected = job.highlights.find((h) => h.id === selectedHighlightId) || job.highlights[0];
+  const displayedHighlights = filtered.length > 0 ? filtered : highlightsList;
+
+  const currentSelected =
+    displayedHighlights.find((h) => h.id === selectedHighlightId) ||
+    highlightsList.find((h) => h.id === selectedHighlightId) ||
+    displayedHighlights[0] ||
+    highlightsList[0];
 
   return (
     <div id="step-3-highlights-container" className="space-y-6">
@@ -122,7 +133,7 @@ export const Step3Highlights: React.FC<Step3HighlightsProps> = ({
 
       {/* Highlights List Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredHighlights.map((hl, index) => {
+        {displayedHighlights.map((hl, index) => {
           const isSelected = hl.id === selectedHighlightId;
 
           return (

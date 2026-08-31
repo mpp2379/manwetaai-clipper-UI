@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { ClipperJob, WordTimestamp } from '../../types';
 import { formatTime, formatDuration } from '../../lib/utils';
+import { generateHighlightsForVideo, generateSampleWordsForRange } from '../../services/mockData';
 
 interface Step4ClipSelectorProps {
   job: ClipperJob;
@@ -28,10 +29,18 @@ export const Step4ClipSelector: React.FC<Step4ClipSelectorProps> = ({
   onConfirmSelection,
   theme,
 }) => {
+  const highlightsList = (job.highlights && job.highlights.length > 0)
+    ? job.highlights
+    : generateHighlightsForVideo(job.title || 'Viral Clip', job.durationSeconds || 180);
+
   const defaultRange: [number, number] = job.customClipRange || [
-    job.highlights[0]?.startTime || 142,
-    job.highlights[0]?.endTime || 187
+    highlightsList[0]?.startTime || 142,
+    highlightsList[0]?.endTime || 187
   ];
+
+  const wordsList = (job.words && job.words.length > 0)
+    ? job.words
+    : generateSampleWordsForRange(defaultRange[0], defaultRange[1]);
 
   const [inPoint, setInPoint] = useState<number>(defaultRange[0]);
   const [outPoint, setOutPoint] = useState<number>(defaultRange[1]);
@@ -90,7 +99,7 @@ export const Step4ClipSelector: React.FC<Step4ClipSelectorProps> = ({
   };
 
   // Re-offset math preview: word start - inPoint
-  const wordsInRange = job.words.filter(w => w.start >= inPoint - 2 && w.end <= outPoint + 2);
+  const wordsInRange = wordsList.filter(w => w.start >= inPoint - 2 && w.end <= outPoint + 2);
 
   return (
     <div id="step-4-clip-selector-container" className="space-y-6">
@@ -117,7 +126,7 @@ export const Step4ClipSelector: React.FC<Step4ClipSelectorProps> = ({
           <select
             value={job.selectedHighlightId || ''}
             onChange={(e) => {
-              const hl = job.highlights.find(h => h.id === e.target.value);
+              const hl = highlightsList.find(h => h.id === e.target.value);
               if (hl) {
                 setInPoint(hl.startTime);
                 setOutPoint(hl.endTime);
@@ -126,7 +135,7 @@ export const Step4ClipSelector: React.FC<Step4ClipSelectorProps> = ({
             }}
             className="px-3.5 py-1.5 rounded-full bg-[#111111] border border-[#222222] text-xs font-medium text-[#EDEDED] focus:outline-none focus:border-white"
           >
-            {job.highlights.map(hl => (
+            {highlightsList.map(hl => (
               <option key={hl.id} value={hl.id}>
                 {hl.score}% Hook • {hl.title.slice(0, 30)}... ({formatDuration(hl.duration)})
               </option>
@@ -323,6 +332,7 @@ export const Step4ClipSelector: React.FC<Step4ClipSelectorProps> = ({
             <div className="p-4 rounded-2xl bg-[#0A0A0A] border border-[#222222] flex-1 overflow-y-auto max-h-[300px] leading-relaxed">
               <div className="flex flex-wrap gap-1.5">
                 {wordsInRange.map((wordObj, i) => {
+                  if (!wordObj || typeof wordObj.word !== 'string') return null;
                   const isCurrentWord = currentTime >= wordObj.start && currentTime <= wordObj.end;
                   const isInsideClip = wordObj.start >= inPoint && wordObj.end <= outPoint;
                   

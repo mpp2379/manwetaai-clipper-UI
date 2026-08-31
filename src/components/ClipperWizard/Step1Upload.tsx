@@ -61,11 +61,11 @@ export const Step1Upload: React.FC<Step1UploadProps> = ({
     const tempVideo = document.createElement('video');
     tempVideo.src = url;
     tempVideo.onloadedmetadata = () => {
-      const durationSec不易 = Math.round(tempVideo.duration) || 1800; // fallback 30m
+      const durationSec = Math.round(tempVideo.duration) || 1800; // fallback 30m
       const meta = {
         name: file.name,
         sizeMb,
-        durationSec: durationSec不易,
+        durationSec,
         resolution: `${tempVideo.videoWidth || 1920}x${tempVideo.videoHeight || 1080}`
       };
       setSelectedFileMeta(meta);
@@ -83,7 +83,7 @@ export const Step1Upload: React.FC<Step1UploadProps> = ({
             url,
             fileName: file.name,
             fileSizeMb: sizeMb,
-            durationSec: durationSec不易,
+            durationSec,
             title: file.name.replace(/\.[^/.]+$/, ''),
             thumbnail: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=800&auto=format&fit=crop&q=80'
           });

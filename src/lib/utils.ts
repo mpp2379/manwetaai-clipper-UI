@@ -1,7 +1,7 @@
 import { StyleConfig } from '../types';
 
-export function formatTime(seconds: number): string {
-  const totalSeconds = Math.max(0, Math.floor(seconds));
+export function formatTime(seconds?: number): string {
+  const totalSeconds = Math.max(0, Math.floor(seconds || 0));
   const hrs = Math.floor(totalSeconds / 3600);
   const mins = Math.floor((totalSeconds % 3600) / 60);
   const secs = totalSeconds % 60;
@@ -12,7 +12,8 @@ export function formatTime(seconds: number): string {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
-export function formatDuration(seconds: number): string {
+export function formatDuration(seconds?: number): string {
+  if (seconds === undefined || seconds === null || isNaN(seconds)) return '0s';
   if (seconds < 60) return `${Math.round(seconds)}s`;
   const mins = Math.floor(seconds / 60);
   const remSecs = Math.round(seconds % 60);

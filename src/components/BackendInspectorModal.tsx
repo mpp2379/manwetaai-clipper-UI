@@ -44,13 +44,16 @@ export const BackendInspectorModal: React.FC<BackendInspectorModalProps> = ({
     currentJob.styleConfig
   );
 
-  const sampleWordsWithReOffset = currentJob.words.slice(0, 8).map(w => ({
-    word: w.word,
-    sourceStart: w.start,
-    sourceEnd: w.end,
-    reOffsetStart: Math.max(0, parseFloat((w.start - inPoint).toFixed(2))),
-    reOffsetEnd: Math.max(0, parseFloat((w.end - inPoint).toFixed(2)))
-  }));
+  const sampleWordsWithReOffset = (currentJob.words || [])
+    .filter(w => w && typeof w.word === 'string')
+    .slice(0, 8)
+    .map(w => ({
+      word: w?.word || '',
+      sourceStart: w?.start ?? 0,
+      sourceEnd: w?.end ?? 0,
+      reOffsetStart: Math.max(0, parseFloat(((w?.start ?? 0) - inPoint).toFixed(2))),
+      reOffsetEnd: Math.max(0, parseFloat(((w?.end ?? 0) - inPoint).toFixed(2)))
+    }));
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);

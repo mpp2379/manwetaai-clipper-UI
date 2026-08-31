@@ -75,10 +75,18 @@ export const Step2Transcribe: React.FC<Step2TranscribeProps> = ({
     ];
 
     let wordIndex = 0;
+    let isSubscribed = true;
+    let completionTimeout: NodeJS.Timeout | null = null;
+
     const interval = setInterval(() => {
+      if (!isSubscribed) return;
+
       if (wordIndex < words.length) {
-        setStreamedWords(prev => [...prev, words[wordIndex]]);
-        const newProg = Math.min(95, Math.round(15 + (wordIndex / words.length) * 80));
+        const nextWord = words[wordIndex];
+        if (nextWord && typeof nextWord.word === 'string') {
+          setStreamedWords(prev => [...prev, nextWord]);
+        }
+        const newProg = Math.min(95, Math.round(15 + ((wordIndex + 1) / words.length) * 80));
         setProgress(newProg);
 
         if (newProg < 40) {
@@ -94,12 +102,23 @@ export const Step2Transcribe: React.FC<Step2TranscribeProps> = ({
         setProgress(100);
         setCurrentStatusText('Transcription complete! Ready for highlight detection.');
         setIsCompleted(true);
-        const fullText = words.map(w => w.word).join(' ');
-        onTranscriptionComplete(words, fullText);
+        const validWords = words.filter(w => w && typeof w.word === 'string');
+        const fullText = validWords.map(w => w.word).join(' ');
+        completionTimeout = setTimeout(() => {
+          if (isSubscribed) {
+            onTranscriptionComplete(validWords, fullText);
+          }
+        }, 500);
       }
-    }, 120);
+    }, 80);
 
-    return () => clearInterval(interval);
+    return () => {
+      isSubscribed = false;
+      clearInterval(interval);
+      if (completionTimeout) {
+        clearTimeout(completionTimeout);
+      }
+    };
   }, []);
 
   return (
@@ -214,9 +233,9 @@ export const Step2Transcribe: React.FC<Step2TranscribeProps> = ({
                 key={idx}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#141414] border border-[#222222] text-xs text-[#EDEDED] hover:border-[#444444] transition-colors group cursor-default"
               >
-                <span className="font-medium">{token.word}</span>
+                <span className="font-medium">{token?.word || ''}</span>
                 <span className="text-[9px] font-mono text-[#666666] group-hover:text-[#00FF85]">
-                  {token.start.toFixed(2)}s
+                  {(token?.start ?? 0).toFixed(2)}s
                 </span>
               </span>
             ))}
@@ -235,8 +254,9 @@ export const Step2Transcribe: React.FC<Step2TranscribeProps> = ({
           <button
             id="proceed-to-highlights-btn"
             onClick={() => {
-              const fullText = streamedWords.map(w => w.word).join(' ');
-              onTranscriptionComplete(streamedWords, fullText);
+              const validStreamed = streamedWords.filter(w => w && typeof w.word === 'string');
+              const fullText = validStreamed.map(w => w?.word || '').join(' ');
+              onTranscriptionComplete(validStreamed, fullText);
             }}
             className="px-6 py-3 rounded-2xl bg-white hover:bg-neutral-200 text-black font-semibold text-sm shadow-sm transition-all flex items-center gap-2"
           >

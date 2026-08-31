@@ -20,6 +20,7 @@ import { Step4ClipSelector } from './components/ClipperWizard/Step4ClipSelector'
 import { Step5StyleChoices } from './components/ClipperWizard/Step5StyleChoices';
 import { Step6RenderQueue } from './components/ClipperWizard/Step6RenderQueue';
 import { Step7DeliverReel } from './components/ClipperWizard/Step7DeliverReel';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { BackendInspectorModal } from './components/BackendInspectorModal';
 import { CheckoutModal } from './components/CheckoutModal';
 import { AuthModal } from './components/AuthModal';
@@ -255,12 +256,26 @@ export default function App() {
 
   // --- Step 2 Handlers ---
   const handleTranscriptionComplete = (words: WordTimestamp[], fullText: string) => {
+    const highlights = (activeJob.highlights && activeJob.highlights.length > 0)
+      ? activeJob.highlights
+      : generateHighlightsForVideo(activeJob.title || 'Viral Podcast Clip', activeJob.durationSeconds || 180);
+
+    const firstHl = highlights[0];
+    const baseWords = (words && words.length > 0)
+      ? words
+      : generateSampleWordsForRange(firstHl?.startTime || 142, firstHl?.endTime || 187);
+
+    const resolvedWords = baseWords.filter(w => w && typeof w.word === 'string');
+
     updateActiveJob({
       status: 'analyzing',
       currentStep: 3,
       progressPercent: 40,
-      words,
-      transcriptText: fullText,
+      words: resolvedWords,
+      highlights,
+      selectedHighlightId: activeJob.selectedHighlightId || firstHl?.id || 'hl-1',
+      customClipRange: activeJob.customClipRange || [firstHl?.startTime || 142, firstHl?.endTime || 187],
+      transcriptText: fullText || resolvedWords.map(w => w?.word || '').join(' '),
       backendLogs: [
         ...(activeJob.backendLogs || []),
         {
@@ -268,7 +283,7 @@ export default function App() {
           timestamp: new Date().toLocaleTimeString(),
           service: 'Whisper',
           level: 'success',
-          message: `Generated ${words.length} word-level tokens with high acoustic confidence`
+          message: `Generated ${resolvedWords.length} word-level tokens with high acoustic confidence`
         }
       ]
     });
@@ -424,84 +439,89 @@ export default function App() {
 
         {/* VIEW 2: 7-Step Clipper Pipeline Wizard */}
         {currentTab === 'wizard' && (
-          <div id="clipper-wizard-workflow-wrapper" className="space-y-6">
-            <WizardProgressBar
-              currentStep={activeJob.currentStep}
-              jobStatus={activeJob.status}
-              maxAccessibleStep={maxAccessibleStep}
-              onStepClick={(step) => {
-                updateActiveJob({ currentStep: step });
-              }}
-              theme={theme}
-            />
-
-            {/* Step 1: Upload or link */}
-            {activeJob.currentStep === 1 && (
-              <Step1Upload
-                onVideoSelected={handleVideoSelected}
-                theme={theme}
-                isOffline={isOfflineSimulated}
-              />
-            )}
-
-            {/* Step 2: Transcribe audio */}
-            {activeJob.currentStep === 2 && (
-              <Step2Transcribe
-                job={activeJob}
-                onTranscriptionComplete={handleTranscriptionComplete}
-                theme={theme}
-              />
-            )}
-
-            {/* Step 3: Detect highlights */}
-            {activeJob.currentStep === 3 && (
-              <Step3Highlights
-                job={activeJob}
-                onSelectHighlight={handleSelectHighlight}
-                theme={theme}
-              />
-            )}
-
-            {/* Step 4: User selects clip */}
-            {activeJob.currentStep === 4 && (
-              <Step4ClipSelector
-                job={activeJob}
-                onConfirmSelection={handleConfirmRange}
-                theme={theme}
-              />
-            )}
-
-            {/* Step 5: Style choices */}
-            {activeJob.currentStep === 5 && (
-              <Step5StyleChoices
-                job={activeJob}
-                onSaveStyles={handleSaveStyles}
-                theme={theme}
-              />
-            )}
-
-            {/* Step 6: Render the clip */}
-            {activeJob.currentStep === 6 && (
-              <Step6RenderQueue
-                job={activeJob}
-                onRenderComplete={handleRenderComplete}
-                theme={theme}
-              />
-            )}
-
-            {/* Step 7: Deliver the reel */}
-            {activeJob.currentStep === 7 && (
-              <Step7DeliverReel
-                job={activeJob}
-                onClipAnother={() => {
-                  updateActiveJob({ currentStep: 3, status: 'analyzing' });
+          <ErrorBoundary
+            fallbackTitle="Error in Wizard Step"
+            onReset={() => updateActiveJob({ currentStep: 1 })}
+          >
+            <div id="clipper-wizard-workflow-wrapper" className="space-y-6">
+              <WizardProgressBar
+                currentStep={activeJob.currentStep}
+                jobStatus={activeJob.status}
+                maxAccessibleStep={maxAccessibleStep}
+                onStepClick={(step) => {
+                  updateActiveJob({ currentStep: step });
                 }}
-                onStartNewVideo={handleStartNewClip}
-                onOpenCheckout={() => setIsCheckoutOpen(true)}
                 theme={theme}
               />
-            )}
-          </div>
+
+              {/* Step 1: Upload or link */}
+              {activeJob.currentStep === 1 && (
+                <Step1Upload
+                  onVideoSelected={handleVideoSelected}
+                  theme={theme}
+                  isOffline={isOfflineSimulated}
+                />
+              )}
+
+              {/* Step 2: Transcribe audio */}
+              {activeJob.currentStep === 2 && (
+                <Step2Transcribe
+                  job={activeJob}
+                  onTranscriptionComplete={handleTranscriptionComplete}
+                  theme={theme}
+                />
+              )}
+
+              {/* Step 3: Detect highlights */}
+              {activeJob.currentStep === 3 && (
+                <Step3Highlights
+                  job={activeJob}
+                  onSelectHighlight={handleSelectHighlight}
+                  theme={theme}
+                />
+              )}
+
+              {/* Step 4: User selects clip */}
+              {activeJob.currentStep === 4 && (
+                <Step4ClipSelector
+                  job={activeJob}
+                  onConfirmSelection={handleConfirmRange}
+                  theme={theme}
+                />
+              )}
+
+              {/* Step 5: Style choices */}
+              {activeJob.currentStep === 5 && (
+                <Step5StyleChoices
+                  job={activeJob}
+                  onSaveStyles={handleSaveStyles}
+                  theme={theme}
+                />
+              )}
+
+              {/* Step 6: Render the clip */}
+              {activeJob.currentStep === 6 && (
+                <Step6RenderQueue
+                  job={activeJob}
+                  onRenderComplete={handleRenderComplete}
+                  theme={theme}
+                />
+              )}
+
+              {/* Step 7: Deliver the reel */}
+              {activeJob.currentStep === 7 && (
+                <Step7DeliverReel
+                  job={activeJob}
+                  onClipAnother={() => {
+                    updateActiveJob({ currentStep: 3, status: 'analyzing' });
+                  }}
+                  onStartNewVideo={handleStartNewClip}
+                  onOpenCheckout={() => setIsCheckoutOpen(true)}
+                  theme={theme}
+                />
+              )}
+            </div>
+          </ErrorBoundary>
         )}
 
         {/* VIEW 3: Pricing & Credits */}

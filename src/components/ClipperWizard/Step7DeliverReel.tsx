@@ -75,7 +75,7 @@ export const Step7DeliverReel: React.FC<Step7DeliverReelProps> = ({
     }, 800);
   };
 
-  const clipDuration = job.customClipRange[1] - job.customClipRange[0];
+  const clipDuration = Math.max(1, (job.customClipRange?.[1] ?? 187) - (job.customClipRange?.[0] ?? 142));
 
   return (
     <div id="step-7-deliver-container" className="space-y-6">
@@ -144,7 +144,7 @@ export const Step7DeliverReel: React.FC<Step7DeliverReelProps> = ({
             <div className="relative z-10 w-full text-center my-auto px-2">
               <div className="inline-block p-2 rounded-2xl bg-black/80 backdrop-blur-sm border border-white/20 shadow-2xl">
                 <span className="font-bold uppercase text-base tracking-wider text-[#00FF85]">
-                  {job.highlights[0]?.hook || "IF YOUR PRODUCT DOES NOT DELIVER INSTANT VALUE"}
+                  {(job.highlights || [])[0]?.hook || "IF YOUR PRODUCT DOES NOT DELIVER INSTANT VALUE"}
                 </span>
               </div>
             </div>

@@ -33,18 +33,36 @@ export const Step6RenderQueue: React.FC<Step6RenderQueueProps> = ({
     '[Captions] Re-offsetting word-level timestamps to clip start (t=0.00s)'
   ]);
 
+  const clipRange = job.customClipRange || [142, 187];
+  const styleConfig = job.styleConfig || {
+    captionStyle: 'hormozi',
+    aspectRatio: '9:16',
+    framing: 'smart_speaker',
+    fontSize: 'lg',
+    fontFamily: 'display',
+    textColor: '#FFFFFF',
+    highlightColor: '#00FF85',
+    showEmojis: true,
+    position: 'middle',
+    musicTrack: 'lo-fi-beats',
+    musicVolume: 20,
+    showBrandLogo: true,
+    brandName: '@manweta.ai',
+    autoReOffsetTimestamps: true
+  };
+
   const ffmpegCommand = generateFFmpegCommand(
     job.sourceFileName || 'source_podcast.mp4',
-    job.customClipRange[0],
-    job.customClipRange[1],
-    job.styleConfig
+    clipRange[0],
+    clipRange[1],
+    styleConfig
   );
 
   useEffect(() => {
     const pipelineStages = [
       { p: 25, stage: 'Cropping center 9:16 viewport & applying smart face tracking...', log: '[FFmpeg] [video_filter] apply crop=ih*(9/16):ih, fps=60' },
-      { p: 50, stage: 'Burning in synchronized word-level captions with ASS subtitle stream...', log: `[Subtitles] Burning style: ${job.styleConfig.captionStyle} with highlight ${job.styleConfig.highlightColor}` },
-      { p: 75, stage: 'Mixing background music overlay with voice auto-ducking (-18dB)...', log: `[Audio] amix inputs=2 duration=first volume=${(job.styleConfig.musicVolume / 100).toFixed(2)}` },
+      { p: 50, stage: 'Burning in synchronized word-level captions with ASS subtitle stream...', log: `[Subtitles] Burning style: ${styleConfig.captionStyle} with highlight ${styleConfig.highlightColor}` },
+      { p: 75, stage: 'Mixing background music overlay with voice auto-ducking (-18dB)...', log: `[Audio] amix inputs=2 duration=first volume=${(styleConfig.musicVolume / 100).toFixed(2)}` },
       { p: 90, stage: 'Encoding final MP4 stream with H.264 CRF 22 High-Profile...', log: '[Encoder] libx264 -b:v 8500k -b:a 192k -movflags +faststart output.mp4' },
       { p: 100, stage: 'Uploading rendered reel to S3 bucket & generating presigned delivery CDN link...', log: '[S3] Upload complete: s3://manweta-renders/job_viral_reel.mp4' }
     ];
