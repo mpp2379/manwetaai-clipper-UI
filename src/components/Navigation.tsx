@@ -14,14 +14,20 @@ import {
   Terminal,
   User,
   ShieldCheck,
-  RotateCcw
+  RotateCcw,
+  ArrowLeft,
+  Video,
+  Grid
 } from 'lucide-react';
 import { UserAccount } from '../types';
 
 interface NavigationProps {
+  currentPage: 'home' | 'studios' | 'clipper' | 'pricing';
+  setCurrentPage: (page: 'home' | 'studios' | 'clipper' | 'pricing') => void;
   currentTab: 'dashboard' | 'wizard' | 'reels' | 'pricing';
   setCurrentTab: (tab: 'dashboard' | 'wizard' | 'reels' | 'pricing') => void;
   user: UserAccount;
+  isLoggedIn: boolean;
   isOfflineSimulated: boolean;
   setIsOfflineSimulated: (offline: boolean) => void;
   pendingSyncCount: number;
@@ -31,13 +37,17 @@ interface NavigationProps {
   onOpenBackendInspector: () => void;
   onOpenCheckout: () => void;
   onOpenAuth: () => void;
+  onGoogleSignIn: () => void;
   onStartNewClip: () => void;
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
+  currentPage,
+  setCurrentPage,
   currentTab,
   setCurrentTab,
   user,
+  isLoggedIn,
   isOfflineSimulated,
   setIsOfflineSimulated,
   pendingSyncCount,
@@ -47,6 +57,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   onOpenBackendInspector,
   onOpenCheckout,
   onOpenAuth,
+  onGoogleSignIn,
   onStartNewClip,
 }) => {
   return (
@@ -61,11 +72,11 @@ export const Navigation: React.FC<NavigationProps> = ({
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          {/* Brand Logo */}
+          {/* Brand Logo & Studio Breadcrumb */}
           <div className="flex items-center gap-3">
             <button
               id="brand-logo-btn"
-              onClick={() => setCurrentTab('dashboard')}
+              onClick={() => setCurrentPage(isLoggedIn ? 'studios' : 'home')}
               className="flex items-center gap-2.5 group text-left focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 rounded-lg p-1"
             >
               <div className="w-9 h-9 rounded-xl bg-[#141414] border border-[#262626] p-1 shadow-sm group-hover:border-[#444444] transition-all flex items-center justify-center">
@@ -77,39 +88,65 @@ export const Navigation: React.FC<NavigationProps> = ({
                     Manweta AI
                   </span>
                   <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-[#141414] text-[#00FF85] border border-[#222222]">
-                    v1.2
+                    v2.0
                   </span>
                 </div>
                 <p className="text-[11px] text-[#666666] leading-tight hidden sm:block">
-                  Long Video → Viral Short Reel
+                  Next-Gen AI Creative Studios
                 </p>
               </div>
             </button>
+
+            {/* If inside Clip Studio, show quick return to Studios Hub */}
+            {currentPage === 'clipper' && (
+              <button
+                type="button"
+                id="back-to-studios-hub-btn"
+                onClick={() => setCurrentPage('studios')}
+                className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#141414] hover:bg-[#1C1C1C] border border-[#262626] text-xs font-semibold text-[#AAAAAA] hover:text-white transition-all ml-2"
+                title="Return to all Manweta AI Studios"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>All Studios</span>
+              </button>
+            )}
           </div>
 
-          {/* Center Navigation Links (Desktop) */}
+          {/* Center Navigation Links */}
           <nav className="hidden md:flex items-center gap-1 bg-[#111111] p-1 rounded-full border border-[#222222]">
             <button
-              id="nav-tab-dashboard"
-              onClick={() => setCurrentTab('dashboard')}
+              id="nav-tab-home"
+              onClick={() => setCurrentPage('home')}
               className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-1.5 ${
-                currentTab === 'dashboard'
+                currentPage === 'home'
                   ? 'bg-white text-black shadow-sm'
                   : 'text-[#888888] hover:text-[#EDEDED] hover:bg-[#1A1A1A]'
               }`}
             >
-              <Layers className="w-3.5 h-3.5" />
-              Dashboard
+              Home
             </button>
 
             <button
-              id="nav-tab-wizard"
+              id="nav-tab-studios-hub"
+              onClick={() => setCurrentPage('studios')}
+              className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-1.5 ${
+                currentPage === 'studios'
+                  ? 'bg-white text-black shadow-sm'
+                  : 'text-[#888888] hover:text-[#EDEDED] hover:bg-[#1A1A1A]'
+              }`}
+            >
+              <Grid className="w-3.5 h-3.5 text-[#00FF85]" />
+              Studios Hub
+            </button>
+
+            <button
+              id="nav-tab-clip-studio"
               onClick={() => {
-                onStartNewClip();
+                setCurrentPage('clipper');
                 setCurrentTab('wizard');
               }}
               className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-1.5 ${
-                currentTab === 'wizard'
+                currentPage === 'clipper'
                   ? 'bg-white text-black shadow-sm'
                   : 'text-[#888888] hover:text-[#EDEDED] hover:bg-[#1A1A1A]'
               }`}
@@ -120,9 +157,9 @@ export const Navigation: React.FC<NavigationProps> = ({
 
             <button
               id="nav-tab-pricing"
-              onClick={() => setCurrentTab('pricing')}
+              onClick={() => setCurrentPage('pricing')}
               className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-all flex items-center gap-1.5 ${
-                currentTab === 'pricing'
+                currentPage === 'pricing'
                   ? 'bg-white text-black shadow-sm'
                   : 'text-[#888888] hover:text-[#EDEDED] hover:bg-[#1A1A1A]'
               }`}
@@ -227,22 +264,51 @@ export const Navigation: React.FC<NavigationProps> = ({
               )}
             </button>
 
-            {/* Upgrade / Account CTA */}
-            <button
-              id="header-upgrade-btn"
-              onClick={onOpenCheckout}
-              className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white text-black hover:bg-neutral-200 shadow-sm transition-all"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Upgrade</span>
-            </button>
+            {/* If NOT logged in, show Google Auth Button */}
+            {!isLoggedIn ? (
+              <button
+                type="button"
+                id="header-google-signin-btn"
+                onClick={onGoogleSignIn}
+                className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-black hover:bg-neutral-200 shadow-sm transition-all"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
+                  <path
+                    fill="#EA4335"
+                    d="M12 5c1.7 0 3 .6 4 1.5l3-3C17.2 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"
+                  />
+                  <path
+                    fill="#4285F4"
+                    d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.9 7.3C.7 9.7 0 12.3 0 15s.7 5.3 1.9 7.7l3.7-2.9z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2.4-6.4-5.2L1.9 16C3.7 19.7 7.5 23 12 23z"
+                  />
+                </svg>
+                <span>Google Sign In</span>
+              </button>
+            ) : (
+              <button
+                id="header-upgrade-btn"
+                onClick={onOpenCheckout}
+                className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white text-black hover:bg-neutral-200 shadow-sm transition-all"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Upgrade</span>
+              </button>
+            )}
 
             {/* User Avatar / Auth */}
             <button
               id="user-profile-avatar-btn"
               onClick={onOpenAuth}
               className="w-8 h-8 rounded-xl overflow-hidden border border-[#2A2A2A] hover:border-[#444444] transition-all flex items-center justify-center bg-[#141414]"
-              title={user.email}
+              title={user.email || 'Click to sign in'}
               aria-label="User profile"
             >
               {user.avatar ? (
@@ -270,20 +336,32 @@ export const Navigation: React.FC<NavigationProps> = ({
         }`}
       >
         <button
-          id="mobile-nav-dashboard"
-          onClick={() => setCurrentTab('dashboard')}
+          id="mobile-nav-home"
+          onClick={() => setCurrentPage('home')}
           className={`flex flex-col items-center justify-center py-1 px-3 rounded-lg text-[10px] font-medium transition-colors ${
-            currentTab === 'dashboard' ? 'text-white font-bold' : 'text-[#888888]'
+            currentPage === 'home' ? 'text-white font-bold' : 'text-[#888888]'
           }`}
         >
-          <Layers className="w-5 h-5 mb-0.5" />
-          Dashboard
+          <Film className="w-5 h-5 mb-0.5" />
+          Home
+        </button>
+
+        <button
+          id="mobile-nav-studios"
+          onClick={() => setCurrentPage('studios')}
+          className={`flex flex-col items-center justify-center py-1 px-3 rounded-lg text-[10px] font-medium transition-colors ${
+            currentPage === 'studios' ? 'text-white font-bold' : 'text-[#888888]'
+          }`}
+        >
+          <Grid className="w-5 h-5 mb-0.5 text-[#00FF85]" />
+          Studios
         </button>
 
         <button
           id="mobile-nav-create"
           onClick={() => {
             onStartNewClip();
+            setCurrentPage('clipper');
             setCurrentTab('wizard');
           }}
           className="flex flex-col items-center justify-center -mt-4"
@@ -296,9 +374,9 @@ export const Navigation: React.FC<NavigationProps> = ({
 
         <button
           id="mobile-nav-pricing"
-          onClick={() => setCurrentTab('pricing')}
+          onClick={() => setCurrentPage('pricing')}
           className={`flex flex-col items-center justify-center py-1 px-3 rounded-lg text-[10px] font-medium transition-colors ${
-            currentTab === 'pricing' ? 'text-white font-bold' : 'text-[#888888]'
+            currentPage === 'pricing' ? 'text-white font-bold' : 'text-[#888888]'
           }`}
         >
           <CreditCard className="w-5 h-5 mb-0.5" />

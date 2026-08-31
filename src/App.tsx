@@ -10,6 +10,8 @@ import {
 import { StorageService, AccessibilitySettings } from './services/storage';
 import { SAMPLE_VIDEOS, generateHighlightsForVideo, generateSampleWordsForRange } from './services/mockData';
 import { Navigation } from './components/Navigation';
+import { LandingPage } from './components/LandingPage';
+import { StudioHub } from './components/StudioHub';
 import { OfflineSyncBanner } from './components/OfflineSyncBanner';
 import { Dashboard } from './components/Dashboard';
 import { WizardProgressBar } from './components/ClipperWizard/WizardProgressBar';
@@ -27,14 +29,21 @@ import { AuthModal } from './components/AuthModal';
 import { AccessibilityModal } from './components/AccessibilityModal';
 
 export default function App() {
-  // --- Global State ---
+  // --- Global Navigation State ---
+  // Initial page: 'home' (Landing Page) as requested
+  const [currentPage, setCurrentPage] = useState<'home' | 'studios' | 'clipper' | 'pricing'>('home');
+  const [currentTab, setCurrentTab] = useState<'dashboard' | 'wizard' | 'reels' | 'pricing'>('wizard');
+
+  // --- User & Account State ---
+  const [user, setUser] = useState<UserAccount>(() => StorageService.getUser());
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => !user.isGuest);
+
+  // --- Theme & A11y ---
   const [theme, setTheme] = useState<'dark' | 'light'>(() => StorageService.getTheme());
   const [a11ySettings, setA11ySettings] = useState<AccessibilitySettings>(() => StorageService.getA11ySettings());
-  const [user, setUser] = useState<UserAccount>(() => StorageService.getUser());
-  const [jobs, setJobs] = useState<ClipperJob[]>(() => StorageService.getJobs());
-  const [currentTab, setCurrentTab] = useState<'dashboard' | 'wizard' | 'reels' | 'pricing'>('dashboard');
 
-  // --- Offline Simulation & Background Sync Queue ---
+  // --- Jobs & Offline Simulation ---
+  const [jobs, setJobs] = useState<ClipperJob[]>(() => StorageService.getJobs());
   const [isOfflineSimulated, setIsOfflineSimulated] = useState(false);
   const [pendingSyncQueue, setPendingSyncQueue] = useState<string[]>(() => StorageService.getPendingSyncQueue());
 
@@ -77,7 +86,7 @@ export default function App() {
     backendLogs: []
   });
 
-  const [maxAccessibleStep, setMaxAccessibleStep] = useState<PipelineStepNumber>(activeJob.currentStep);
+  const [maxAccessibleStep, setMaxAccessibleStep] = useState<PipelineStepNumber>(activeJob.currentStep || 1);
 
   // --- Modals ---
   const [isBackendInspectorOpen, setIsBackendInspectorOpen] = useState(false);
@@ -91,10 +100,10 @@ export default function App() {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
       document.body.classList.add('bg-[#0A0A0A]', 'text-[#EDEDED]');
-      document.body.classList.remove('bg-neutral-50', 'text-neutral-900', 'bg-slate-950', 'text-slate-100');
+      document.body.classList.remove('bg-neutral-100', 'text-neutral-900');
     } else {
       document.documentElement.classList.remove('dark');
-      document.body.classList.remove('bg-[#0A0A0A]', 'text-[#EDEDED]', 'bg-slate-950', 'text-slate-100');
+      document.body.classList.remove('bg-[#0A0A0A]', 'text-[#EDEDED]');
       document.body.classList.add('bg-neutral-100', 'text-neutral-900');
     }
   }, [theme]);
@@ -102,7 +111,6 @@ export default function App() {
   // Handle Online/Offline Automatic Syncing
   useEffect(() => {
     if (!isOfflineSimulated && pendingSyncQueue.length > 0) {
-      // Simulate background worker syncing
       const timer = setTimeout(() => {
         const updatedJobs = jobs.map(j => {
           if (pendingSyncQueue.includes(j.id)) {
@@ -140,6 +148,25 @@ export default function App() {
       }
       return [newJob, ...prev];
     });
+  };
+
+  // Google Sign-In Handler
+  const handleGoogleSignIn = () => {
+    const googleUser: UserAccount = {
+      id: 'usr_google_' + Date.now().toString(36),
+      name: 'Shweta Patil',
+      email: 'shwetapatil.180301@gmail.com',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      plan: 'pro',
+      creditsRemaining: 300,
+      creditsTotal: 300,
+      isGuest: false,
+      joinedDate: 'August 2026'
+    };
+    StorageService.saveUser(googleUser);
+    setUser(googleUser);
+    setIsLoggedIn(true);
+    setCurrentPage('studios'); // Route immediately to 2nd Page (Studio Hub)
   };
 
   // Start new video clip creation
@@ -194,13 +221,15 @@ export default function App() {
 
     setActiveJob(blankJob);
     setMaxAccessibleStep(1);
+    setCurrentPage('clipper');
     setCurrentTab('wizard');
     StorageService.saveOrUpdateJob(blankJob);
   };
 
   const handleOpenExistingJob = (job: ClipperJob) => {
     setActiveJob(job);
-    setMaxAccessibleStep(job.currentStep);
+    setMaxAccessibleStep(job.currentStep || 1);
+    setCurrentPage('clipper');
     setCurrentTab('wizard');
   };
 
@@ -356,7 +385,6 @@ export default function App() {
 
   // --- Step 6 Handlers ---
   const handleRenderComplete = (renderedUrl: string) => {
-    // Deduct user credits (e.g. 1 minute)
     StorageService.deductCredits(1);
     setUser(StorageService.getUser());
 
@@ -396,9 +424,12 @@ export default function App() {
     >
       {/* Top Header Navigation */}
       <Navigation
+        currentPage={currentPage}
+        setCurrentPage={setCurrentPage}
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
         user={user}
+        isLoggedIn={isLoggedIn}
         isOfflineSimulated={isOfflineSimulated}
         setIsOfflineSimulated={setIsOfflineSimulated}
         pendingSyncCount={pendingSyncQueue.length}
@@ -408,6 +439,7 @@ export default function App() {
         onOpenBackendInspector={() => setIsBackendInspectorOpen(true)}
         onOpenCheckout={() => setIsCheckoutOpen(true)}
         onOpenAuth={() => setIsAuthOpen(true)}
+        onGoogleSignIn={handleGoogleSignIn}
         onStartNewClip={handleStartNewClip}
       />
 
@@ -422,129 +454,202 @@ export default function App() {
         theme={theme}
       />
 
-      {/* Main View Router */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-12">
-        {/* VIEW 1: Dashboard */}
-        {currentTab === 'dashboard' && (
-          <Dashboard
-            jobs={jobs}
+      {/* PAGE ROUTER */}
+      <main className="flex-1 w-full pb-24 md:pb-12">
+        {/* PAGE 1: Landing Homepage */}
+        {currentPage === 'home' && (
+          <LandingPage
+            onLoginClick={() => setIsAuthOpen(true)}
+            onGoogleSignIn={handleGoogleSignIn}
+            onEnterStudioHub={() => setCurrentPage('studios')}
+            onLaunchClipStudio={() => {
+              setCurrentPage('clipper');
+              setCurrentTab('wizard');
+            }}
+            onNavigatePricing={() => setCurrentPage('pricing')}
+            isLoggedIn={isLoggedIn}
             user={user}
-            onStartNewClip={handleStartNewClip}
-            onOpenJob={handleOpenExistingJob}
-            onOpenCheckout={() => setIsCheckoutOpen(true)}
-            isOffline={isOfflineSimulated}
             theme={theme}
           />
         )}
 
-        {/* VIEW 2: 7-Step Clipper Pipeline Wizard */}
-        {currentTab === 'wizard' && (
-          <ErrorBoundary
-            fallbackTitle="Error in Wizard Step"
-            onReset={() => updateActiveJob({ currentStep: 1 })}
-          >
-            <div id="clipper-wizard-workflow-wrapper" className="space-y-6">
-              <WizardProgressBar
-                currentStep={activeJob.currentStep}
-                jobStatus={activeJob.status}
-                maxAccessibleStep={maxAccessibleStep}
-                onStepClick={(step) => {
-                  updateActiveJob({ currentStep: step });
-                }}
-                theme={theme}
-              />
-
-              {/* Step 1: Upload or link */}
-              {activeJob.currentStep === 1 && (
-                <Step1Upload
-                  onVideoSelected={handleVideoSelected}
-                  theme={theme}
-                  isOffline={isOfflineSimulated}
-                />
-              )}
-
-              {/* Step 2: Transcribe audio */}
-              {activeJob.currentStep === 2 && (
-                <Step2Transcribe
-                  job={activeJob}
-                  onTranscriptionComplete={handleTranscriptionComplete}
-                  theme={theme}
-                />
-              )}
-
-              {/* Step 3: Detect highlights */}
-              {activeJob.currentStep === 3 && (
-                <Step3Highlights
-                  job={activeJob}
-                  onSelectHighlight={handleSelectHighlight}
-                  theme={theme}
-                />
-              )}
-
-              {/* Step 4: User selects clip */}
-              {activeJob.currentStep === 4 && (
-                <Step4ClipSelector
-                  job={activeJob}
-                  onConfirmSelection={handleConfirmRange}
-                  theme={theme}
-                />
-              )}
-
-              {/* Step 5: Style choices */}
-              {activeJob.currentStep === 5 && (
-                <Step5StyleChoices
-                  job={activeJob}
-                  onSaveStyles={handleSaveStyles}
-                  theme={theme}
-                />
-              )}
-
-              {/* Step 6: Render the clip */}
-              {activeJob.currentStep === 6 && (
-                <Step6RenderQueue
-                  job={activeJob}
-                  onRenderComplete={handleRenderComplete}
-                  theme={theme}
-                />
-              )}
-
-              {/* Step 7: Deliver the reel */}
-              {activeJob.currentStep === 7 && (
-                <Step7DeliverReel
-                  job={activeJob}
-                  onClipAnother={() => {
-                    updateActiveJob({ currentStep: 3, status: 'analyzing' });
-                  }}
-                  onStartNewVideo={handleStartNewClip}
-                  onOpenCheckout={() => setIsCheckoutOpen(true)}
-                  theme={theme}
-                />
-              )}
-            </div>
-          </ErrorBoundary>
+        {/* PAGE 2: Studios Hub (2nd Page Selector) */}
+        {currentPage === 'studios' && (
+          <StudioHub
+            user={user}
+            savedJobs={jobs}
+            onLaunchClipStudio={() => {
+              setCurrentPage('clipper');
+              setCurrentTab('wizard');
+            }}
+            onSelectExistingJob={handleOpenExistingJob}
+            onOpenCheckout={() => setIsCheckoutOpen(true)}
+            onOpenAuth={() => setIsAuthOpen(true)}
+            onGoHome={() => setCurrentPage('home')}
+            theme={theme}
+          />
         )}
 
-        {/* VIEW 3: Pricing & Credits */}
-        {currentTab === 'pricing' && (
-          <div className="space-y-6">
+        {/* PAGE 3: Clip Studio (Intact 7-Step Pipeline + Dashboard) */}
+        {currentPage === 'clipper' && (
+          <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            {/* Tab switch inside Clip Studio */}
+            <div className="flex items-center justify-between pb-6 mb-6 border-b border-[#222222]">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentTab('wizard')}
+                  className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all ${
+                    currentTab === 'wizard'
+                      ? 'bg-white text-black shadow-md'
+                      : 'bg-[#141414] text-[#888888] hover:text-white border border-[#222222]'
+                  }`}
+                >
+                  7-Step Clipper Pipeline
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentTab('dashboard')}
+                  className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all ${
+                    currentTab === 'dashboard'
+                      ? 'bg-white text-black shadow-md'
+                      : 'bg-[#141414] text-[#888888] hover:text-white border border-[#222222]'
+                  }`}
+                >
+                  Project Dashboard
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleStartNewClip}
+                className="px-4 py-2 rounded-2xl bg-[#161616] hover:bg-[#222222] border border-[#2E2E2E] text-white font-semibold text-xs transition-colors"
+              >
+                + New Ingest
+              </button>
+            </div>
+
+            {currentTab === 'dashboard' && (
+              <Dashboard
+                jobs={jobs}
+                user={user}
+                onStartNewClip={handleStartNewClip}
+                onOpenJob={handleOpenExistingJob}
+                onOpenCheckout={() => setIsCheckoutOpen(true)}
+                isOffline={isOfflineSimulated}
+                theme={theme}
+              />
+            )}
+
+            {currentTab === 'wizard' && (
+              <ErrorBoundary
+                fallbackTitle="Error in Wizard Step"
+                onReset={() => updateActiveJob({ currentStep: 1 })}
+              >
+                <div id="clipper-wizard-workflow-wrapper" className="space-y-6">
+                  <WizardProgressBar
+                    currentStep={activeJob.currentStep}
+                    jobStatus={activeJob.status}
+                    maxAccessibleStep={maxAccessibleStep}
+                    onStepClick={(step) => {
+                      updateActiveJob({ currentStep: step });
+                    }}
+                    theme={theme}
+                  />
+
+                  {/* Step 1: Upload or link */}
+                  {activeJob.currentStep === 1 && (
+                    <Step1Upload
+                      onVideoSelected={handleVideoSelected}
+                      theme={theme}
+                      isOffline={isOfflineSimulated}
+                    />
+                  )}
+
+                  {/* Step 2: Transcribe audio */}
+                  {activeJob.currentStep === 2 && (
+                    <Step2Transcribe
+                      job={activeJob}
+                      onTranscriptionComplete={handleTranscriptionComplete}
+                      theme={theme}
+                    />
+                  )}
+
+                  {/* Step 3: Detect highlights */}
+                  {activeJob.currentStep === 3 && (
+                    <Step3Highlights
+                      job={activeJob}
+                      onSelectHighlight={handleSelectHighlight}
+                      theme={theme}
+                    />
+                  )}
+
+                  {/* Step 4: User selects clip */}
+                  {activeJob.currentStep === 4 && (
+                    <Step4ClipSelector
+                      job={activeJob}
+                      onConfirmSelection={handleConfirmRange}
+                      theme={theme}
+                    />
+                  )}
+
+                  {/* Step 5: Style choices */}
+                  {activeJob.currentStep === 5 && (
+                    <Step5StyleChoices
+                      job={activeJob}
+                      onSaveStyles={handleSaveStyles}
+                      theme={theme}
+                    />
+                  )}
+
+                  {/* Step 6: Render the clip */}
+                  {activeJob.currentStep === 6 && (
+                    <Step6RenderQueue
+                      job={activeJob}
+                      onRenderComplete={handleRenderComplete}
+                      theme={theme}
+                    />
+                  )}
+
+                  {/* Step 7: Deliver the reel */}
+                  {activeJob.currentStep === 7 && (
+                    <Step7DeliverReel
+                      job={activeJob}
+                      onClipAnother={() => {
+                        updateActiveJob({ currentStep: 3, status: 'analyzing' });
+                      }}
+                      onStartNewVideo={handleStartNewClip}
+                      onOpenCheckout={() => setIsCheckoutOpen(true)}
+                      theme={theme}
+                    />
+                  )}
+                </div>
+              </ErrorBoundary>
+            )}
+          </div>
+        )}
+
+        {/* PAGE 4: Pricing */}
+        {currentPage === 'pricing' && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
             <div className="text-center max-w-2xl mx-auto space-y-2">
-              <span className="text-xs font-mono font-extrabold uppercase px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">
+              <span className="text-xs font-mono font-bold uppercase px-3 py-1 rounded-full bg-[#00FF85]/10 text-[#00FF85] border border-[#00FF85]/30">
                 Transparent High-Volume Pricing
               </span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
-                Scale Your Short-Form Viral Distribution
+              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                Scale Your Video & Ad Production with Manweta AI
               </h2>
-              <p className="text-xs sm:text-sm text-slate-400">
+              <p className="text-xs sm:text-sm text-[#888888]">
                 Pick a plan tailored for creators, podcasts, and digital agencies. Includes 14-day money-back guarantee.
               </p>
             </div>
 
-            <div className="pt-4">
+            <div className="pt-2 max-w-md mx-auto">
               <button
                 id="open-full-checkout-btn"
                 type="button"
                 onClick={() => setIsCheckoutOpen(true)}
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-purple-600 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-slate-950 font-black text-sm shadow-2xl flex items-center justify-center gap-2"
+                className="w-full py-3.5 rounded-2xl bg-white hover:bg-neutral-200 text-black font-bold text-xs shadow-xl transition-all flex items-center justify-center gap-2"
               >
                 <span>Open Interactive Upgrade & Checkout Modal</span>
               </button>
@@ -584,7 +689,11 @@ export default function App() {
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}
         user={user}
-        onAuthSuccess={(updated) => setUser(updated)}
+        onAuthSuccess={(updated) => {
+          setUser(updated);
+          setIsLoggedIn(true);
+          setCurrentPage('studios');
+        }}
         theme={theme}
       />
 
