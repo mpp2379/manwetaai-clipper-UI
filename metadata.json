@@ -1,0 +1,6 @@
+{
+  "name": "Manweta AI - Video to Viral Reels Clipper",
+  "description": "End-to-end AI video clipper that transforms long-form podcasts and webinars into high-engagement vertical short reels with word-timed captions, automated highlight detection, and offline sync.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
